@@ -1,0 +1,20 @@
+npm install -g firebase-tools
+firebase login
+mkdir fireact
+cd fireact
+firebase init
+code . #open visual studio code 
+edit index.js:
+
+firebase deploy
+
+use postman #get https://us-central1-fireactplayground.cloudfunctions.net/helloWorld
+
+
+
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M master
+git remote add origin https://github.com/KyeongHoSeong/FirebaseReactPlayground.git
+git push -u origin master
