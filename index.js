@@ -43,10 +43,53 @@ app.get('/screams', (req, res) => {
         .catch(err => console.error(err));
 });
 
-app.post('/scream', (req,res) => {  
+
+//middle ware
+const FBAuth = (req, res, next) => {
+    let idToken;
+   if(
+    req.headers.authorization && 
+    req.headers.authorization.startsWith('Bearer ') 
+   ) {
+       idToken = req.headers.authorization.split('Bearer ')[1];
+   } else {
+       console.error('No token found');
+       return res.status(403).json({ error: 'Unauthorized' });
+   }
+
+   admin
+     .auth()
+     .verifyIdToken(idToken)
+     .then((decodedToken) => {
+       req.user = decodedToken;
+       console.log(decodedToken);
+       return db
+         .collection('users')
+         .where('userId', '==', req.user.uid)
+         .limit(1)
+         .get();
+     })
+     .then((data) => {
+       req.user.handle = data.docs[0].data().handle;
+       return next();
+     })
+     .catch((err) => {
+       console.error('Error   while verifying token', err);
+       return res.status(403).json(err);
+     });
+};
+
+
+//app.post('/scream',  (req,res) => {  
+app.post('/scream', FBAuth, (req,res) => {  
+    if(req.body.body.trim() ===""){
+        return res.status(400).json({body: 'Body must not be empty'})
+    }
+
     const newScreams = {
         body:req.body.body,
-        userHandle: req.body.userHandle,
+        //userHandle: req.body.userHandle,
+        userHandle: req.user.handle,
         //createdAt: admin.firestore.Timestamp.fromDate(new Date())
         createdAt: new Date().toISOString()
     };
@@ -57,7 +100,7 @@ app.post('/scream', (req,res) => {
         .collection('screams')
         .add(newScreams)
         .then(doc => {
-            res.json({messabe: `document ${doc.id} created successfully`});
+            res.json({message: `document ${doc.id} created successfully`});
         })
         .catch(err=> {
             res.status(500).json({eror: 'something went wrong' });
@@ -71,15 +114,18 @@ exports.helloWorld = functions.https.onRequest((request, response) => {
  
 //help function
 const isEmail = (email) => {
-    const regEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-    if (email.match(regEx)) return true;
-    else return false;
+  const regEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  if (email.match(regEx)) return true;
+  else return false;
 };
 
 const isEmpty = (string) => {
-    if(string.trim() === '') return true;
-    else return false;
+  if (string.trim() === "") return true;
+  else return false;
 };
+
+
+
 // Signup Route
 app.post("/signup", (req, res) => {
   const newUser = {
@@ -148,6 +194,45 @@ app.post("/signup", (req, res) => {
         return res.status(500).json({ error: err.code });
         }
     });
+});
+
+ 
+
+app.post('/login', (req, res) => {
+    const user = {
+        email: req.body.email,
+        password: req.body.password
+    };
+
+    let errors = {};
+
+    if(isEmpty(user.email)) errors.email = 'Must not be empty';
+    if(isEmpty(user.password)) errors.password = 'Must not be empty';
+
+    if(Object.keys(errors).length > 0) return res.status(400).json(errors);
+
+    firebase
+      .auth()
+      .signInWithEmailAndPassword(user.email, user.password)
+      .then((data) => {
+        return data.user.getIdToken();
+      })
+      .then((token) => {
+        return res.json({ token });
+      })
+      .catch((err) => {
+        console.error(err);
+        if (err.code === 'auth/user-not-found') {
+          return res
+            .status(403)
+            .json({ general: 'Wrong user email, please try again' });
+        } else if (err.code === "auth/wrong-password") {
+          return res
+            .status(403)
+            .json({ general: "Wrong credentials, please try again" });
+        } else
+            return res.status(500).json({ error: err.code });
+      });
 });
 
 
