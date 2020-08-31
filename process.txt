@@ -11,10 +11,16 @@ firebase deploy
 use postman #get https://us-central1-fireactplayground.cloudfunctions.net/helloWorld
 
 
-
+1st
 git init
 git add README.md
 git commit -m "first commit"
 git branch -M master
 git remote add origin https://github.com/KyeongHoSeong/FirebaseReactPlayground.git
 git push -u origin master
+
+2nd
+git add .
+git commit -m "step 2"
+git branch -M step2
+git push -u origin step2
